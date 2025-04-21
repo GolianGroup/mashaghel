@@ -1,4 +1,4 @@
-FROM golang:1.23.2-bullseye AS builder
+FROM golang:1.24.2-bullseye AS builder
 
 # Move to working directory (/build).
 WORKDIR /build
