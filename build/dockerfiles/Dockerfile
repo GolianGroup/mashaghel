@@ -1,4 +1,4 @@
-FROM golang:1.23.2-bullseye AS builder
+FROM golang:1.24.2-bullseye AS builder
 
 # Move to working directory (/build).
 WORKDIR /build
@@ -35,4 +35,4 @@ EXPOSE 8080
 EXPOSE 50051
 
 # Command to run the application.
-CMD ["./bin/server", "serve"]
+CMD ["./bin/server", "run"]
