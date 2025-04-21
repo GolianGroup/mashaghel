@@ -1,7 +1,6 @@
 package tasks
 
 import (
-	"fmt"
 	"mashaghel/internal/config"
 	"mashaghel/internal/database/scylla"
 	"time"
@@ -39,20 +38,24 @@ func NewTaskManager(
 }
 
 func (t *task) InitWorkerPool() error {
+	t.logger.Info("Initializing worker pool powered by (YA ALI)", zap.Int("size", t.configs.WorkerPoolSize))
 	pool, err := ants.NewPool(t.configs.WorkerPoolSize)
 	if err != nil {
+		t.logger.Error("Failed to initialize worker pool", zap.Error(err))
 		return err
 	}
 	t.workerpool = pool
+	t.logger.Info("Worker pool initialized successfully")
 	return nil
 }
 
 func (t *task) Start() {
-	fmt.Println("hala inja")
+	t.logger.Info("Starting task manager")
 	go t.watchBackgroundJob()
 }
 
 func (t *task) watchBackgroundJob() {
+	t.logger.Info("Starting background job watcher")
 
 	ticker := time.NewTicker(time.Duration(t.configs.TasksConfig.WatchCooldownDuration) * time.Second)
 	defer ticker.Stop()
@@ -60,7 +63,7 @@ func (t *task) watchBackgroundJob() {
 	longPolling := func() {
 		defer func() {
 			if r := recover(); r != nil {
-				t.logger.Error("panic in run", zap.Any("panic", r))
+				t.logger.Error("Panic in run", zap.Any("panic", r))
 			}
 		}()
 
@@ -68,6 +71,7 @@ func (t *task) watchBackgroundJob() {
 		case <-ticker.C:
 			t.processWatched()
 		case <-t.quit:
+			t.logger.Info("Received quit signal, stopping background job watcher")
 			return
 		}
 	}
@@ -75,10 +79,11 @@ func (t *task) watchBackgroundJob() {
 	for {
 		longPolling()
 	}
-
 }
 
 func (t *task) Stop() {
+	t.logger.Info("Stopping task manager")
 	t.quit <- struct{}{}
 	t.workerpool.Release()
+	t.logger.Info("Task manager stopped successfully")
 }
