@@ -10,9 +10,9 @@ import (
 )
 
 var serveCmd = &cobra.Command{
-	Use:   "serve",
-	Short: "Serve API",
-	Run:   serve,
+	Use:   "run",
+	Short: "Run Jobs",
+	Run:   run,
 	Args:  cobra.MaximumNArgs(2),
 }
 
@@ -20,8 +20,8 @@ func init() {
 	RootCmd.AddCommand(serveCmd)
 }
 
-func serve(cmd *cobra.Command, args []string) {
-	log.Println("serve")
+func run(cmd *cobra.Command, args []string) {
+	log.Println("run")
 	//viper
 	config, err := config.LoadConfig("config/config.yml")
 	if err != nil {
