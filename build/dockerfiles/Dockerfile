@@ -35,4 +35,4 @@ EXPOSE 8080
 EXPOSE 50051
 
 # Command to run the application.
-CMD ["./bin/server", "serve"]
+CMD ["./bin/server", "run"]
