@@ -1,0 +1,133 @@
+version: "3.9"
+
+services:
+  app:
+    build:
+      context: ../../
+      dockerfile: ./build/dockerfiles/Dockerfile
+    container_name: template-app
+    restart: always
+    volumes:
+      - ../../config/config.dev.yml:/app/config/config.yml
+    ports:
+      - "8080:8080"
+      - "50051:50051"
+    environment:
+      - MODE=development
+    depends_on:
+      - redis
+      - clickhouse
+      - postgres
+      - arango
+      - tracer
+
+  postgres:
+    image: postgres:17.2
+    container_name: template-postgres
+    restart: always
+    environment:
+      PGDATA: /var/lib/postgresql/data/pgdata
+      POSTGRES_DB: ${DB_NAME:-myapp}
+      POSTGRES_USER: ${DB_USER:-postgres}
+      POSTGRES_PASSWORD: ${DB_PASSWORD:-1234}
+    volumes:
+      - postgres_data:/var/lib/postgresql/data
+    # ports:
+    #   - "5432:5432"
+
+  arango:
+    image: arangodb:3.12 # NOTE: test in version 3.12.x, other version may have some compatibility issues
+    container_name: template-arango
+    restart: always
+    environment:
+      ARANGO_ROOT_PASSWORD: ${ARANGO_PASSWORD:-rootpassword}
+    volumes:
+      - arango_data:/var/lib/arangodb3
+    # ports:
+    #   - "8529:8529"
+
+  redis:
+    image: redis:latest
+    container_name: template-redis
+    restart: always
+    environment:
+      REDIS_PASSWORD: ${REDIS_PASSWORD:-""}
+      REDIS_DATABASES: 1
+      REDIS_PORT: 6379
+    # ports:
+    #   - "6379:6379"
+    volumes:
+      - redis_data:/var/lib/redis/data/
+
+  clickhouse:
+    image: "clickhouse/clickhouse-server:${CHVER:-latest}"
+    user: "101:101"
+    container_name: template-clickhouse
+    hostname: clickhouse
+    volumes:
+      - ./configs/clickhouse-dev/config.xml:/etc/clickhouse-server/config.d/config.xml
+      - ./configs/clickhouse-dev/users.xml:/etc/clickhouse-server/users.d/users.xml
+    # ports:
+    #   - "127.0.0.1:8123:8123"
+    #   - "127.0.0.1:9000:9000"
+    depends_on:
+      - clickhouse-keeper
+
+  clickhouse-keeper:
+    image: "clickhouse/clickhouse-keeper:${CHKVER:-latest-alpine}"
+    user: "101:101"
+    container_name: clickhouse-keeper
+    hostname: clickhouse-keeper
+    volumes:
+      - ${PWD}/fs/volumes/clickhouse-keeper/etc/clickhouse-keeper/:/etc/clickhouse-keeper/
+    ports:
+      - "127.0.0.1:9181:9181"
+
+  db-migrator:
+    build:
+      context: ../../
+      dockerfile: ./build/dockerfiles/Dockerfile
+    container_name: db-migrator
+    volumes:
+      - ../../config/config.dev.yml:/app/config/config.yml
+      - ../../internal/database/arango/migrations:/app/internal/database/arango/migrations
+      - ../../internal/database/postgres/migrations:/app/internal/database/postgres/migrations
+    depends_on:
+      - postgres
+      - arango
+    command: >
+      sh -c "
+      ./bin/server pg_migrate && 
+      ./bin/server ag_migrate
+      "
+
+  db-creator:
+    build:
+      context: ../../
+      dockerfile: ./build/dockerfiles/Dockerfile
+    container_name: db-creator
+    volumes:
+      - ../../config/config.dev.yml:/app/config/config.yml
+    depends_on:
+      - postgres
+      - arango
+    command: >
+      sh -c "
+      ./bin/server pg_create &&
+      ./bin/server ag_create
+      "
+
+  tracer:
+    image: otel/opentelemetry-collector-contrib:latest
+    container_name: template-tracer
+    restart: always
+    volumes:
+      - ./config/otel-collector-config.yml:/etc/otel-collector-config.yml
+    # ports:
+    #   - "4317:4317"
+
+volumes:
+  postgres_data:
+  arango_data:
+  clickhouse_data:
+  redis_data:

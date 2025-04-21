@@ -1,0 +1,97 @@
+{
+  "Up": {
+    "collection_name": "videos_collection",
+    "options": {
+      "EnforceReplicationFactor": true
+    },
+    "properties": {
+      "indexBuckets": 16,
+      "journalSize": 1048576,
+      "minReplicationFactor": 1,
+      "numberOfShards": 1,
+      "replicationFactor": 1,
+      "schema": {
+        "rule": {
+          "properties": {
+            "publishable": {
+              "type": "boolean"
+            },
+            "categories": {
+              "items": {
+                "type": "string"
+              },
+              "type": "array"
+            },
+            "description": {
+              "type": "string"
+            },
+            "name": {
+              "type": "string"
+            },
+            "views": {
+              "minimum": 0,
+              "type": "integer"
+            },
+            "type": {
+              "enum": ["movie", "series", "tvshow"],
+              "default": "movie",
+              "type": "string"
+            }
+          },
+          "required": ["publishable", "name", "categories"]
+        },
+        "level": "moderate",
+        "message": "Schema of video_collection collection does not fulfill the requirements."
+      },
+      "shardKeys": ["_key"],
+      "type": 2,
+      "waitForSync": true,
+      "writeConcern": 1
+    }
+  },
+  "Down": {
+    "collection_name": "videos_collection",
+    "options": {
+      "EnforceReplicationFactor": true
+    },
+    "properties": {
+      "indexBuckets": 16,
+      "journalSize": 1048576,
+      "minReplicationFactor": 1,
+      "numberOfShards": 1,
+      "replicationFactor": 1,
+      "schema": {
+        "rule": {
+          "properties": {
+            "publishable": {
+              "type": "boolean"
+            },
+            "categories": {
+              "items": {
+                "type": "string"
+              },
+              "type": "array"
+            },
+            "description": {
+              "type": "string"
+            },
+            "name": {
+              "type": "string"
+            },
+            "views": {
+              "minimum": 0,
+              "type": "integer"
+            }
+          },
+          "required": ["publishable", "name", "categories"]
+        },
+        "level": "moderate",
+        "message": "Schema of videos_collection collection does not fulfill the requirements."
+      },
+      "shardKeys": ["_key"],
+      "type": 2,
+      "waitForSync": true,
+      "writeConcern": 1
+    }
+  }
+}

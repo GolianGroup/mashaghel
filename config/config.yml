@@ -1,0 +1,101 @@
+server:
+  port: "8080"
+  host: "0.0.0.0"
+  mode: "development"
+  read_timeout: 10 # seconds
+  write_timeout: 10 # seconds
+  cors:
+    allow_origins: "*"
+redis:
+  host: "localhost"
+  port: "6379"
+  password: ""
+  db: 0
+  max_retries: 3
+  pool_size: 100
+  min_idle_conns: 10
+  dial_time_out: 5
+  read_time_out: 3
+  write_time_out: 3
+  idle_time_out: 5
+log_level: "info"
+arango:
+  db_name: "catalogdb"
+  conn_strs: "http://127.0.0.1:8529"
+  insecure_skip_verify: true
+  user: "root"
+  password: "rootpassword"
+logger:
+  level: "info"
+  encoder_config:
+    message_key: "msg"
+    level_key: "level"
+    name_key: "logger"
+  rotation_config:
+    filename: "var/lib/test.txt"
+    max_size: 500
+    max_backups: 2
+    max_age: 1
+  fluentbit_config:
+    host: "fluent-bit"
+    port: 24224
+    tag: "test.template"
+tracer:
+  service_name: "test"
+  insecure: "true"
+  collector_url: "localhost:4317"
+grpc:
+  grpc_host: "localhost"
+  grpc_port: "50051"
+  timeout_seconds: 10
+environment: "development"
+
+jwt:
+  secret: "your-super-secret-key-should-be-at-least-32-chars"
+  expire_hour: 24
+  refresh_expire_day: 7
+
+scylladb:
+  hosts:
+    - "127.0.0.1:9042"
+  keyspace: "starnet_main"
+  username: "root"
+  password: "rootpassword"
+  replication_class: "SimpleStrategy"
+  replication_factor: 3
+
+request_timeout: 10 # TODO: check if this is correct
+
+nats:
+  client_port: 4223
+  server_port: 8223
+  username: user
+  password: password
+  host: 127.0.0.1
+  queue: user-interaction
+  stream_config:
+    name: UserInteraction
+    #Dictates how messages are retained in the stream. Options include:
+    #   limit: Retains messages until limits are exceeded.
+    #   interest: Retains messages as long as there are active interests (consumers).
+    #   workqueue: Retains messages only until acknowledged by consumers.
+    retention: limits
+    # Determines the policy for discarding messages when limits are reached.
+    #   old: Discards the oldest messages to make room for new messages.
+    #   new: Rejects new messages when limits are reached (often less common).
+    discard: old
+    # Configures the type of storage used for the stream:
+    #   file: Messages are persisted to disk.
+    #   memory: Messages are held in memory, offering faster performance but volatile storage.
+    storage: file
+    no_ack: false
+    max_consumers: 2
+    # Determines the maximum time messages are retained in the stream, providing time-based expiration for messages.
+    # Based on minutes
+    max_age: 2
+
+worker_pool:
+  worker_pool_size: 3
+  tasks_config:
+    watch_cooldown_duration: 30 #‌ In Seconds
+    watch_age_limit: -72 #In hours
