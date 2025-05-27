@@ -31,8 +31,10 @@ func (t *task) processWatched() {
 	wg := sync.WaitGroup{}
 	daysAgo := time.Now().Add(time.Duration(t.configs.TasksConfig.WatchAgeLimit) * time.Hour)
 
+	t.logger.Info("Starting processWatched task Powered by (YA ALI)")
+
 	for {
-		// Process idle watches and retrieve play IDs that need updates
+		t.logger.Info("Processing idle watches", zap.Int64("profileToken", profileToken))
 		playInfos, profileToken, err = t.processIdleWatches(profileToken, daysAgo)
 		if err != nil {
 			t.logger.Error("Error processing idle watches", zap.Error(err))
@@ -44,6 +46,7 @@ func (t *task) processWatched() {
 			wg.Wait()
 			return
 		}
+		t.logger.Info("Idle watches found", zap.Int("count", len(playInfos)))
 		wg.Add(1)
 		t.workerpool.Submit(func() {
 			t.updateWatches(playInfos, profileToken)
@@ -53,11 +56,12 @@ func (t *task) processWatched() {
 }
 
 func (t *task) updateWatches(playInfos map[string]playInfo, profileToken int64) {
+	t.logger.Info("Starting updateWatches", zap.Int64("profileToken", profileToken), zap.Int("playInfosCount", len(playInfos)))
+
 	batch := t.scylla.Session().NewBatch(gocql.LoggedBatch)
-	deleteTS := time.Now().UnixNano() / 1000 // this is for deleteing recent_watches
+	deleteTS := time.Now().UnixNano() / 1000 // this is for deleting recent_watches
 	batch.SetConsistency(gocql.Any)
 
-	// Build a comma-separated placeholder string for play IDs
 	placeHolder := ""
 	i := 0
 
@@ -71,23 +75,27 @@ func (t *task) updateWatches(playInfos map[string]playInfo, profileToken int64) 
 	}
 
 	if i == 0 {
+		t.logger.Warn("No playInfos to process for the given token", zap.Int64("profileToken", profileToken))
 		return
 	}
+
+	t.logger.Info("Querying watched table", zap.String("placeHolder", placeHolder))
+
 	var watchedAt gocql.UUID
 	var play_id string
-	// Query watched table for play IDs and their watched_at timestamps
 
-	// TODO: better query style
 	query := fmt.Sprintf(`SELECT play_id, watched_at FROM watched WHERE token(profile_id) = ? AND play_id in (%v)`, placeHolder)
 	iter := t.scylla.Session().Query(query, profileToken).Consistency(gocql.One).Iter()
 	for iter.Scan(&play_id, &watchedAt) {
 		playInfo, ok := playInfos[play_id]
 
 		if !ok {
-			t.logger.Error("Play info not found", zap.String("play_id", play_id), zap.String("profile_id", playInfo.profile_id))
+			t.logger.Error("Play info not found", zap.String("play_id", play_id))
 			continue
 		}
-		// watched queries
+
+		t.logger.Info("Processing play info", zap.String("play_id", play_id), zap.String("profile_id", playInfo.profile_id))
+
 		batch.Query(
 			queryUpdateWatched,
 			playInfo.watchedAt,
@@ -102,47 +110,41 @@ func (t *task) updateWatches(playInfos map[string]playInfo, profileToken int64) 
 			playInfo.watchedAt,
 		)
 		if watchedAt != gocql.UUID(uuid.Nil) {
-			//delete outdated ordered watched query
 			batch.Query(queryDeleteOutdatedOrderedWatch, playInfo.profile_id, watchedAt)
 		}
 		batch.Query(queryDeleteOutdatedRecentWatch, deleteTS, playInfo.profile_id, playInfo.play_id)
-
 	}
-	// Execute the batch
+
 	if err := t.scylla.Session().ExecuteBatch(batch); err != nil {
-		fmt.Println(placeHolder)
-		fmt.Println("Error executing batch:", err)
+		t.logger.Error("Error executing batch", zap.Error(err), zap.String("placeHolder", placeHolder))
 		return
 	}
 
-	// Close the iterator and handle errors
 	if err := iter.Close(); err != nil {
-		fmt.Println("Error closing iterator:", err)
+		t.logger.Error("Error closing iterator", zap.Error(err))
 		return
 	}
 
+	t.logger.Info("Successfully updated watches")
 }
 
-// procecssIdleWatches processes idle watches by querying the database for
-// profile IDs and their associated play IDs that meet specific criteria.
 func (t *task) processIdleWatches(token int64, daysAgo time.Time) (map[string]playInfo, int64, error) {
-	playIds := make(map[string]playInfo) // Initialize the map to avoid nil dereference
+	t.logger.Info("Starting processIdleWatches", zap.Int64("token", token))
+
+	playIds := make(map[string]playInfo)
 	if token == 0 {
 		query := `SELECT DISTINCT token(profile_id) FROM recent_watch LIMIT 1;`
 
-		// Fetch the initial token and profile ID
 		if err := t.scylla.Session().Query(query).Scan(&token); err != nil {
 			if err == gocql.ErrNotFound {
-				t.logger.Info("No Initial token found, retrying...")
+				t.logger.Info("No initial token found, retrying...")
 				return nil, token, nil
 			}
 			t.logger.Error("Error fetching profile ID", zap.Error(err))
 			return nil, token, err
 		}
-
 	} else {
 		query := `SELECT DISTINCT token(profile_id) FROM recent_watch WHERE token(profile_id) > ? LIMIT 1;`
-		// Fetch the next token value greater than the provided token
 		if err := t.scylla.Session().Query(query, token).Consistency(gocql.One).Scan(&token); err != nil {
 			if err == gocql.ErrNotFound {
 				t.logger.Info("No next token found, retrying...")
@@ -152,7 +154,9 @@ func (t *task) processIdleWatches(token int64, daysAgo time.Time) (map[string]pl
 			return nil, token, err
 		}
 	}
-	// Query play IDs, watched_at timestamps, and durations for the given token
+
+	t.logger.Info("Querying play IDs for token", zap.Int64("token", token))
+
 	query := `SELECT play_id, watched_at, duration, profile_id FROM recent_watch WHERE token(profile_id) = ?;`
 	iter := t.scylla.Session().Query(query, token).Consistency(gocql.One).Iter()
 
@@ -162,13 +166,11 @@ func (t *task) processIdleWatches(token int64, daysAgo time.Time) (map[string]pl
 	var watchedAt gocql.UUID
 
 	for iter.Scan(&playId, &watchedAt, &duration, &profile_id) {
-		// Skip play IDs with watched_at timestamps not older than three days
 		isOlderThanAgeLimit := watchedAt.Time().Before(daysAgo)
 		if !isOlderThanAgeLimit {
 			continue
 		}
 
-		// Keep only the most recent play IDs with watched_at timestamps at least 3 days old
 		if watchedAt.Time().Before(daysAgo) {
 			existingPlayInfo, exists := playIds[playId]
 			if !exists || watchedAt.Time().After(existingPlayInfo.watchedAt.Time()) {
@@ -181,11 +183,12 @@ func (t *task) processIdleWatches(token int64, daysAgo time.Time) (map[string]pl
 			}
 		}
 	}
-	// Close the iterator and log errors if any
+
 	if err := iter.Close(); err != nil {
 		t.logger.Error("Error fetching play IDs", zap.Error(err))
 		return nil, token, err
 	}
 
+	t.logger.Info("Successfully processed idle watches", zap.Int("playIdsCount", len(playIds)))
 	return playIds, token, nil
 }
