@@ -7,7 +7,7 @@ pipeline {
         }
     }
     environment {
-        REGISTRY = 'r.glss.ir'
+        REGISTRY = 'reg.glss.ir'
         PROJECT_NAME = 'vod/mashaghel'
         STAGE = 'CI'
         BUILDKIT_PROGRESS = 'plain'
@@ -18,7 +18,7 @@ pipeline {
         DOCKERFILE_PATH = "${PROJECT_PATH}/build/dockerfiles/Dockerfile"
         CONTAINER_LABEL = 'go'
         CONTAINER_NAME = 'mashaghel'
-        CONTAINER_NEW_NAME = 'r.glss.ir/vod/mashaghel'
+        CONTAINER_NEW_NAME = 'reg.glss.ir/vod/mashaghel'
     }
     options {
         skipDefaultCheckout(true)
