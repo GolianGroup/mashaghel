@@ -1,18 +1,18 @@
 package controllers
 
 import (
+	"encoding/json"
+	"net/http"
 	"time"
 
 	"mashaghel/internal/services"
 
 	"go.uber.org/zap"
-
-	"github.com/gofiber/fiber/v2"
 )
 
 type SystemController interface {
-	HealthCheck(c *fiber.Ctx) error
-	ReadyCheck(c *fiber.Ctx) error
+	HealthCheck(w http.ResponseWriter, r *http.Request)
+	ReadyCheck(w http.ResponseWriter, r *http.Request)
 }
 
 type systemController struct {
@@ -24,26 +24,56 @@ func NewSystemController(systemService services.SystemService, logger *zap.Logge
 	return &systemController{systemService: systemService, logger: logger}
 }
 
-func (controller *systemController) HealthCheck(c *fiber.Ctx) error {
-	controller.logger.Info("HealthCheck")
+func (c *systemController) HealthCheck(w http.ResponseWriter, r *http.Request) {
+	c.logger.Info("HealthCheck")
 
-	return c.Status(fiber.StatusOK).JSON(fiber.Map{
-		"status": "UP",
-		"time":   time.Now(),
-	})
+	ctx := r.Context()
+	healthCheck, errors := c.systemService.HealthCheck(ctx)
+
+	if len(errors) != 0 {
+		c.logger.Error("HealthCheck", zap.Any("errors", errors))
+		body := map[string]interface{}{
+			"status": "down",
+			"time":   time.Now().UTC(),
+			"checks": healthCheck,
+		}
+		writeJSON(w, http.StatusInternalServerError, body)
+	}
+
+	body := map[string]interface{}{
+		"status": "up",
+		"time":   time.Now().UTC(),
+		"checks": healthCheck,
+	}
+	writeJSON(w, http.StatusOK, body)
 }
 
-func (controller *systemController) ReadyCheck(c *fiber.Ctx) error {
+func (c *systemController) ReadyCheck(w http.ResponseWriter, r *http.Request) {
+	c.logger.Info("ReadyCheck")
 
-	controller.logger.Info("ReadyCheck")
-	readyCheck, errors := controller.systemService.ReadyCheck(c.Context())
-	status := "READY"
-	if errors != nil {
-		status = "NOT_READY"
+	ctx := r.Context()
+	readyCheck, errors := c.systemService.ReadyCheck(ctx)
+
+	if len(errors) != 0 {
+		c.logger.Error("ReadyCheck", zap.Any("errors", errors))
+		body := map[string]interface{}{
+			"status": "not_ready",
+			"time":   time.Now().UTC(),
+			"checks": readyCheck,
+		}
+		writeJSON(w, http.StatusInternalServerError, body)
 	}
-	return c.Status(fiber.StatusOK).JSON(fiber.Map{
-		"status":     status,
-		"readyCheck": readyCheck,
-		"time":       time.Now(),
-	})
+
+	body := map[string]interface{}{
+		"status": "ready",
+		"time":   time.Now().UTC(),
+		"checks": readyCheck,
+	}
+	writeJSON(w, http.StatusOK, body)
+}
+
+func writeJSON(w http.ResponseWriter, code int, v interface{}) {
+	w.Header().Set("Content-Type", "application/json")
+	w.WriteHeader(code)
+	_ = json.NewEncoder(w).Encode(v)
 }

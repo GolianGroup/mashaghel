@@ -1,6 +1,8 @@
 package services
 
-import "mashaghel/internal/repositories"
+import (
+	"mashaghel/internal/repositories"
+)
 
 type Service interface {
 	RpcServiceService() RpcServiceService
