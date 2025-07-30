@@ -1,4 +1,4 @@
-FROM golang:1.24.2-bullseye AS builder
+FROM reg.glss.ir/docker.io/library/golang:1.24.2-bullseye AS builder
 
 # Move to working directory (/build).
 WORKDIR /build
@@ -7,7 +7,7 @@ WORKDIR /build
 COPY go.mod go.sum ./
 
 # Download and cache dependencies early to take advantage of Docker's caching layers.
-RUN GOPROXY=https://goproxy.io,direct go mod download
+RUN GOPROXY=https://nexus1.glss.ir/repository/goproxy.io,direct go mod download
 
 # Now tidy the module to clean up any unwanted dependencies.
 RUN go mod tidy
