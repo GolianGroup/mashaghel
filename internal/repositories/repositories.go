@@ -2,9 +2,7 @@ package repositories
 
 import (
 	"context"
-	"mashaghel/internal/database/arango"
 	"mashaghel/internal/database/scylla"
-	"mashaghel/internal/producers"
 
 	"go.uber.org/zap"
 )
@@ -21,8 +19,8 @@ type repository struct {
 	systemRepository SystemRepository
 }
 
-func NewRepository(arango arango.ArangoDB, redis producers.RedisClient, scyllaDB scylla.ScyllaDB, logger *zap.Logger, ctx context.Context) Repository {
-	systemRepository := NewSystemRepository(arango, redis, scyllaDB)
+func NewRepository(scyllaDB scylla.ScyllaDB, logger *zap.Logger, ctx context.Context) Repository {
+	systemRepository := NewSystemRepository(scyllaDB)
 	return &repository{
 		systemRepository: systemRepository,
 	}

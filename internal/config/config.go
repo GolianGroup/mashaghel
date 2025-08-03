@@ -116,3 +116,8 @@ func GetNatsURL(cfg *NatsConfig) string {
 		cfg.ClientPort,
 	)
 }
+
+func SystemServerAddr(cfg *ServerConfig) string {
+	addr := fmt.Sprintf("%s:%s", cfg.Host, cfg.Port)
+	return addr
+}

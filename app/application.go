@@ -2,6 +2,7 @@ package app
 
 import (
 	"context"
+	"mashaghel/handler/server"
 	"mashaghel/internal/config"
 	"mashaghel/internal/tasks"
 
@@ -27,11 +28,11 @@ func NewApplication(ctx context.Context, config *config.Config) Application {
 func (a *application) Setup() {
 	app := fx.New(
 		fx.Provide(
-			// a.InitRouter,
+			a.InitRouter,
 			// a.InitFramework,
-			// a.InitController,
-			// a.InitServices,
-			// a.InitRepositories,
+			a.InitController,
+			a.InitServices,
+			a.InitRepositories,
 			// a.InitRedis,
 			// a.InitArangoDB,
 			a.InitScyllaDB,
@@ -40,6 +41,7 @@ func (a *application) Setup() {
 			// a.InitGRPCServer,
 			// a.InitNats,
 			a.InitTask,
+			a.InitSystemServer,
 		),
 
 		// fx.Invoke(func(lc fx.Lifecycle, connection nats.NatsConnection, logger *zap.Logger) {
@@ -135,6 +137,24 @@ func (a *application) Setup() {
 				OnStop: func(ctx context.Context) error {
 					t.Stop()
 					return nil
+				},
+			})
+		}),
+
+		fx.Invoke(func(lc fx.Lifecycle, srv server.HttpServer, logger *zap.Logger) {
+			lc.Append(fx.Hook{
+				OnStart: func(ctx context.Context) error {
+					logger.Info("Starting http server ... ")
+					go func() {
+						if err := srv.Start(); err != nil {
+							logger.Fatal("HTTP server crashed", zap.Error(err))
+						}
+					}()
+					return nil
+				},
+				OnStop: func(ctx context.Context) error {
+					logger.Info("Shutting down HTTP server...")
+					return srv.Stop(ctx)
 				},
 			})
 		}),

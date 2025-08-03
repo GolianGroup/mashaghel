@@ -2,23 +2,22 @@ package routers
 
 import (
 	"mashaghel/handler/controllers"
-
-	"github.com/gofiber/fiber/v2"
+	"net/http"
 )
 
 type SystemRouter interface {
-	AddRoutes(router fiber.Router)
+	AddRoutes(mux *http.ServeMux)
 }
 
 type systemRouter struct {
-	Controller controllers.SystemController
+	controller controllers.SystemController
 }
 
 func NewSystemRouter(controller controllers.SystemController) SystemRouter {
-	return &systemRouter{Controller: controller}
+	return &systemRouter{controller: controller}
 }
 
-func (r *systemRouter) AddRoutes(router fiber.Router) {
-	router.Get("/api/health", r.Controller.HealthCheck)
-	router.Get("/health/ready", r.Controller.ReadyCheck)
+func (r *systemRouter) AddRoutes(mux *http.ServeMux) {
+	mux.HandleFunc("/system/health", r.controller.HealthCheck)
+	mux.HandleFunc("/system/ready", r.controller.ReadyCheck)
 }

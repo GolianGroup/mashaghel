@@ -2,39 +2,35 @@ package routers
 
 import (
 	"mashaghel/handler/controllers"
-	"mashaghel/handler/middlewares"
-	"mashaghel/internal/producers"
-
-	"github.com/gofiber/fiber/v2"
-	"go.opentelemetry.io/otel/trace"
+	"net/http"
 )
 
 type Router interface {
-	AddRoutes(router fiber.Router)
+	AddRoutes(mux *http.ServeMux)
 }
 
 type router struct {
 	systemRouter SystemRouter
-	redisClient  producers.RedisClient
-	tracer       trace.Tracer
+	// redisClient  producers.RedisClient
+	// tracer       trace.Tracer
 }
 
-func NewRouter(controllers controllers.Controllers, redisClient producers.RedisClient, tracer trace.Tracer) Router {
+func NewRouter(controllers controllers.Controllers) Router {
 
 	return &router{
-		redisClient: redisClient,
-		tracer:      tracer,
+		systemRouter: NewSystemRouter(controllers.SystemController()),
+		// redisClient: redisClient,
+		// tracer:      tracer,
 	}
 }
 
-func (r router) AddRoutes(router fiber.Router) {
+func (r router) AddRoutes(mux *http.ServeMux) {
 
 	// router
 	// init user router, etc ...
 	// rate limiter
 	// CORS
-	router.Use(middlewares.TracingMiddleware(r.tracer))
 
-	// r.systemRouter.AddRoutes(router)
+	r.systemRouter.AddRoutes(mux)
 
 }
